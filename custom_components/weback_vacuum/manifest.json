@@ -2,8 +2,8 @@
     "domain": "weback_vacuum",
     "name": "WeBack/Tesvor Vacuum | Modernized",
     "codeowners": [
-      "@Jezza34000,
-      @insidethepixel"
+      "@Jezza34000",
+      "@insidethepixel"
     ],
     "config_flow": false,
     "documentation": "https://github.com/insidethepixel/homeassistant_weback_component/blob/main/README.md",
