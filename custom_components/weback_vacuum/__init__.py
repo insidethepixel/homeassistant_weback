@@ -104,4 +104,6 @@ async def async_setup(hass, config):
         _LOGGER.debug("Starting vacuum robot components")
         load_platform(hass, "vacuum", DOMAIN, {}, config)
         load_platform(hass, "camera", DOMAIN, {}, config)
+        load_platform(hass, "sensor", DOMAIN, {}, config)
     return True
+

@@ -2,17 +2,15 @@
 
 import logging
 
-from homeassistant.components.vacuum import (
-    STATE_CLEANING,
-    STATE_DOCKED,
-    STATE_ERROR,
-    STATE_IDLE,
-    STATE_PAUSED,
-    STATE_RETURNING,
-    StateVacuumEntity,
-    VacuumEntityFeature,
-)
-from homeassistant.helpers.icon import icon_for_battery_level
+from homeassistant.components.vacuum import StateVacuumEntity, VacuumEntityFeature
+from homeassistant.helpers.entity import DeviceInfo
+
+STATE_CLEANING = "cleaning"
+STATE_DOCKED = "docked"
+STATE_ERROR = "error"
+STATE_IDLE = "idle"
+STATE_PAUSED = "paused"
+STATE_RETURNING = "returning"
 
 from . import DOMAIN, VacDevice
 
@@ -82,7 +80,6 @@ class WebackVacuumRobot(StateVacuumEntity):
             VacuumEntityFeature.TURN_ON
             | VacuumEntityFeature.TURN_OFF
             | VacuumEntityFeature.STATUS
-            | VacuumEntityFeature.BATTERY
             | VacuumEntityFeature.PAUSE
             | VacuumEntityFeature.STOP
             | VacuumEntityFeature.RETURN_HOME
@@ -92,6 +89,7 @@ class WebackVacuumRobot(StateVacuumEntity):
             | VacuumEntityFeature.SEND_COMMAND
             | VacuumEntityFeature.FAN_SPEED
         )
+
         _LOGGER.info("Vacuum initialized: %s", self.name)
 
     @property
@@ -129,24 +127,6 @@ class WebackVacuumRobot(StateVacuumEntity):
             return None
 
     @property
-    def battery_level(self):
-        """Return the battery level of the vacuum cleaner."""
-        return self.device.battery_level
-
-    @property
-    def battery_icon(self):
-        """Return the battery icon for the vacuum cleaner."""
-        _LOGGER.debug(
-            "Vacuum: battery_icon battery_level=%s, charging=%s",
-            self.battery_level,
-            self.is_charging,
-        )
-        return icon_for_battery_level(
-            battery_level=self.battery_level,
-            charging=self.is_charging,
-        )
-
-    @property
     def fan_speed(self):
         """Return the fan speed of the vacuum cleaner."""
         # Check if robot is in Vacuum/Mop mode
@@ -154,10 +134,12 @@ class WebackVacuumRobot(StateVacuumEntity):
             # Vacuum mode
             _LOGGER.debug("Vacuum: (vacuum mode) fan_speed=%s", self.device.fan_status)
             return self.device.fan_status
+
         if self.device.vacuum_or_mop == 2:
             # Mop mode
             _LOGGER.debug("Vacuum: (mop mode) fan_speed=%s", self.device.mop_status)
             return self.device.mop_status
+
         # No Mop / No Fan
         _LOGGER.debug("Vacuum: no Fan / no Mop")
         return None
@@ -176,6 +158,7 @@ class WebackVacuumRobot(StateVacuumEntity):
                 self.device.fan_speed_list,
             )
             return self.device.fan_speed_list
+
         if self.device.vacuum_or_mop == 2:
             # Mop mode
             _LOGGER.debug(
@@ -183,6 +166,7 @@ class WebackVacuumRobot(StateVacuumEntity):
                 self.device.mop_level_list,
             )
             return self.device.mop_level_list
+
         # No Mop / No Fan
         _LOGGER.debug("Vacuum: no Fan / no Mop fan_speed_list=None")
         return None
@@ -197,6 +181,15 @@ class WebackVacuumRobot(StateVacuumEntity):
     def unique_id(self) -> str:
         """Return an unique ID."""
         return self.device.name
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.device.name)},
+            "name": self.device.nickname,
+            "manufacturer": "WeBack",
+            "model": self.device.sub_type,
+        }
 
     @property
     def is_on(self):
@@ -218,6 +211,7 @@ class WebackVacuumRobot(StateVacuumEntity):
         extra_value = {
             "robot_mode": mode,
             "error_info": self.device.error_info,
+            "battery_level": self.device.battery_level,
         }
 
         if "volume" in self.device.robot_status:
@@ -231,14 +225,18 @@ class WebackVacuumRobot(StateVacuumEntity):
 
         if "clean_area" in self.device.robot_status:
             clean_area = self.device.robot_status["clean_area"]
+
             if clean_area is None:
                 clean_area = 0
+
             extra_value["clean_area"] = round(clean_area, 1)
 
         if "clean_time" in self.device.robot_status:
             clean_time = self.device.robot_status["clean_time"]
+
             if clean_time is None:
                 clean_time = 0
+
             if self.device.sub_type in SUB_TYPES_REPORTING_MINUTES:
                 extra_value["clean_time"] = (clean_time,)
             else:
@@ -256,11 +254,14 @@ class WebackVacuumRobot(StateVacuumEntity):
             self._error = None
         else:
             self._error = error
+
         _LOGGER.debug("Vacuum: on_error=%s", self._error)
+
         self.hass.bus.fire(
             "weback_vacuum",
             {"entity_id": self.entity_id, "error": error},
         )
+
         self.schedule_update_ha_state(False)
 
     async def async_turn_on(self, **kwargs):
@@ -325,11 +326,18 @@ class WebackVacuumRobot(StateVacuumEntity):
             params,
             kwargs,
         )
+
         if command == "app_segment_clean":
             await self.device.clean_room(params)
+
         elif command == "app_zoned_clean":
             await self.device.clean_zone(params)
+
         elif command == "app_goto_target":
-            await self.device.goto([int(params[0] / 10), int(params[1] / 10)])
+            await self.device.goto(
+                [int(params[0] / 10), int(params[1] / 10)]
+            )
+
         else:
             await self.device.send_command(self.name, self.sub, params)
+

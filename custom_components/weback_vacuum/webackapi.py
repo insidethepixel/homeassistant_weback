@@ -162,7 +162,7 @@ class WebackApi:
 
         params = {
             "json": {"opt": "user_thing_list_get"},
-            "headers": {"Token": self.jwt_token, "Region": self.region_name},
+            "headers": {"token": self.jwt_token, "region": self.region_name},
         }
         resp = await self.send_http(self.api_url, **params)
 
@@ -188,7 +188,7 @@ class WebackApi:
                 "sub_type": sub_type,
                 "thing_name": thing_name,
             },
-            "headers": {"Token": self.jwt_token, "Region": self.region_name},
+            "headers": {"token": self.jwt_token, "region": self.region_name},
         }
 
         resp = await self.send_http(self.api_url, **params)
@@ -548,21 +548,40 @@ class WebackWssCtrl(WebackApi):
                 self._call_subscriber()
             else:
                 _LOGGER.debug("No update from cloud")
+
         elif wss_data["notify_info"] == MAP_DATA:
+            map_data = wss_data.get("map_data")
+
+            # Ignore unsupported or empty map payloads
+            # (many non-LIDAR devices still send MAP_DATA events)
+            if not map_data:
+                _LOGGER.debug("WebackApi (WSS) Ignoring empty MapData payload")
+                return
+
+            if not isinstance(map_data, dict):
+                _LOGGER.debug(
+                    "WebackApi (WSS) Ignoring unsupported MapData payload type: %s",
+                    type(map_data),
+                )
+                return
+
             _LOGGER.debug("WebackApi (WSS) Map data received")
+
             try:
                 if not self.map:
-                    self.map = VacMap(wss_data["map_data"])
+                    self.map = VacMap(map_data)
                 else:
-                    self.map.wss_update(wss_data["map_data"])
-            except Exception as msg_excpt:
-                _LOGGER.error(
-                    "WebackApi (WSS) Error during on_message (map_data) (details=%s)",
-                    msg_excpt,
+                    self.map.wss_update(map_data)
+
+            except Exception:
+                _LOGGER.exception(
+                    "WebackApi (WSS) Failed to process MapData"
                 )
+                return
 
             self.adapt_refresh_time(self.robot_status)
             self._call_subscriber()
+
         else:
             _LOGGER.error(
                 "WebackApi (WSS) Received an unknown message from server : %s",
@@ -700,3 +719,5 @@ class WebackWssCtrl(WebackApi):
         _LOGGER.debug("WebackApi (WSS): Calling subscriber (schedule_update_ha_state)")
         for subscriber in self.subscriber:
             subscriber(self)
+
+
