@@ -6,9 +6,9 @@
       "@insidethepixel"
     ],
     "config_flow": false,
-    "documentation": "https://github.com/insidethepixel/homeassistant_weback_component/blob/main/README.md",
+    "documentation": "https://github.com/insidethepixel/homeassistant_weback/blob/main/README.md",
     "iot_class": "cloud_push",
-    "issue_tracker": "https://github.com/insidethepixel/homeassistant_weback_component/issues",
+    "issue_tracker": "https://github.com/insidethepixel/homeassistant_weback/issues",
     "requirements": [
         "httpx==0.28.1",
         "websocket-client==1.8.0"
